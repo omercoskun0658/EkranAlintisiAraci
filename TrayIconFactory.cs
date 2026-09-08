@@ -1,4 +1,5 @@
 using System.Drawing.Drawing2D;
+using System.Runtime.InteropServices;
 
 namespace EkranAlintisiAraci;
 
@@ -10,6 +11,9 @@ namespace EkranAlintisiAraci;
 /// </summary>
 public static class TrayIconFactory
 {
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool DestroyIcon(IntPtr hIcon);
+
     public static Icon Create()
     {
         using var bmp = new Bitmap(64, 64);
@@ -43,6 +47,14 @@ public static class TrayIconFactory
             g.FillEllipse(dot, 29, 29, 6, 6);
 
         IntPtr hIcon = bmp.GetHicon();
-        return Icon.FromHandle(hIcon);
+        try
+        {
+            using var temp = Icon.FromHandle(hIcon);
+            return (Icon)temp.Clone();
+        }
+        finally
+        {
+            DestroyIcon(hIcon);
+        }
     }
 }

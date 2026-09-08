@@ -34,6 +34,7 @@ public sealed class CropForm : Form
         _screen = screen;
 
         // Form özellikleri
+        AutoScaleMode   = AutoScaleMode.None;
         FormBorderStyle = FormBorderStyle.None;
         TopMost         = true;
         ShowInTaskbar   = false;
@@ -54,13 +55,11 @@ public sealed class CropForm : Form
             ControlStyles.UserPaint, true);
 
         // Olaylar
-        KeyDown   += (_, e) =>
+        KeyDown += (_, e) =>
         {
             if (e.KeyCode == Keys.Escape)
             {
-                WasCancelled = true;
-                SelectedRegion = Rectangle.Empty;
-                Close();
+                CancelCapture();
             }
         };
         MouseDown += OnMouseDown;
@@ -68,9 +67,22 @@ public sealed class CropForm : Form
         MouseUp   += OnMouseUp;
     }
 
+    private void CancelCapture()
+    {
+        WasCancelled = true;
+        SelectedRegion = Rectangle.Empty;
+        Close();
+    }
+
     // ── Fare Olayları ────────────────────────────────────────────────────────
     private void OnMouseDown(object? sender, MouseEventArgs e)
     {
+        if (e.Button == MouseButtons.Right)
+        {
+            CancelCapture();
+            return;
+        }
+
         if (e.Button != MouseButtons.Left) return;
         _start    = e.Location;
         _current  = e.Location;
@@ -90,16 +102,8 @@ public sealed class CropForm : Form
         _dragging = false;
         _current  = e.Location;
 
-        var local = Normalize(_start, _current);
-        var vs    = SystemInformation.VirtualScreen;
-
-        // Yerel koordinatları ekran koordinatlarına çevir
-        SelectedRegion = new Rectangle(
-            local.X + vs.X,
-            local.Y + vs.Y,
-            local.Width,
-            local.Height);
-
+        // local koordinatlar zaten form/fullScreenBmp ile birebir örtüşür (vs.X/vs.Y eklenmez)
+        SelectedRegion = Normalize(_start, _current);
         WasCancelled = false;
         Close();
     }

@@ -34,8 +34,39 @@ public sealed class AppSettings
     /// <summary>Dosya adlandırma modu.</summary>
     public NamingMode NamingMode { get; set; } = NamingMode.Timestamp;
 
+    /// <summary>
+    /// Windows kullanıcı adından dosya sisteminde yasaklı karakterleri temizleyerek
+    /// güvenli varsayılan dosya ön adı üretir (Örn: "omercoskun_").
+    /// </summary>
+    public static string GetDefaultPrefix()
+    {
+        string rawUser = Environment.UserName;
+        return SanitizePrefix($"{rawUser}_", "kullanici_");
+    }
+
+    /// <summary>
+    /// Verilen metinden Windows dosya adlarında hata verebilecek karakterleri (\ / : * ? " < > | vb.) temizler.
+    /// </summary>
+    public static string SanitizePrefix(string? input, string fallback = "kullanici_")
+    {
+        if (string.IsNullOrWhiteSpace(input))
+            return fallback;
+
+        char[] invalidChars = Path.GetInvalidFileNameChars();
+        var cleanChars = input.Where(c => !invalidChars.Contains(c) && !char.IsControl(c)).ToArray();
+        string clean = new string(cleanChars).Trim();
+
+        return string.IsNullOrWhiteSpace(clean) ? fallback : clean;
+    }
+
+    private string _filePrefix = GetDefaultPrefix();
+
     /// <summary>Sıralı artan modda kullanılacak dosya ön adı.</summary>
-    public string FilePrefix { get; set; } = "ad_";
+    public string FilePrefix
+    {
+        get => _filePrefix;
+        set => _filePrefix = SanitizePrefix(value, GetDefaultPrefix());
+    }
 
     /// <summary>
     /// Kısayol tuşunun string adı (JSON'a yazılır).

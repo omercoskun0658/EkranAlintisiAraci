@@ -21,12 +21,12 @@ public sealed class SettingsForm : Form
         _settings = settings;
         
         Text = "Ekran Alıntısı Aracı - Ayarlar";
-        Size = new Size(400, 360);
+        ClientSize = new Size(420, 390);
         StartPosition = FormStartPosition.CenterScreen;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         MinimizeBox = false;
-        Font = new Font("Segoe UI", 9f);
+        Font = new Font("Segoe UI", 9.5f);
 
         InitializeComponents();
         LoadSettingsToUI();
@@ -41,8 +41,8 @@ public sealed class SettingsForm : Form
         Controls.Add(lblFolder);
         y += 25;
 
-        txtFolder = new TextBox { Location = new Point(20, y), Width = 280, ReadOnly = true };
-        btnBrowse = new Button { Text = "Gözat...", Location = new Point(310, y - 1), Width = 55 };
+        txtFolder = new TextBox { Location = new Point(20, y), Width = 295, ReadOnly = true };
+        btnBrowse = new Button { Text = "Gözat...", Location = new Point(325, y - 1), Width = 75, Height = 25 };
         btnBrowse.Click += BtnBrowse_Click;
         Controls.Add(txtFolder);
         Controls.Add(btnBrowse);
@@ -54,42 +54,52 @@ public sealed class SettingsForm : Form
         y += 25;
 
         radTimestamp = new RadioButton { Text = "Zaman Damgası (Örn: ekran_14-30-22.png)", Location = new Point(20, y), AutoSize = true };
-        y += 25;
+        y += 26;
         radSequential = new RadioButton { Text = "Sıralı Artan", Location = new Point(20, y), AutoSize = true };
         
         radTimestamp.CheckedChanged += (s, e) => txtPrefix.Enabled = radSequential.Checked;
         
         Controls.Add(radTimestamp);
         Controls.Add(radSequential);
-        y += 30;
+        y += 32;
 
         // 3. Ön Ad (Sıralı için)
-        var lblPrefix = new Label { Text = "Dosya Ön Adı:", Location = new Point(40, y + 2), AutoSize = true };
-        txtPrefix = new TextBox { Location = new Point(130, y), Width = 150 };
+        var lblPrefix = new Label { Text = "Dosya Ön Adı:", Location = new Point(40, y + 3), AutoSize = true };
+        txtPrefix = new TextBox { Location = new Point(140, y), Width = 175 };
         Controls.Add(lblPrefix);
         Controls.Add(txtPrefix);
-        y += 40;
+        y += 42;
 
         // 4. Kısayol Tuşu
         var lblHotkey = new Label { Text = "Kısayol Tuşu:", Location = new Point(20, y), AutoSize = true };
         Controls.Add(lblHotkey);
         y += 25;
 
-        cmbHotkey = new ComboBox { Location = new Point(20, y), Width = 150, DropDownStyle = ComboBoxStyle.DropDownList };
+        cmbHotkey = new ComboBox { Location = new Point(20, y), Width = 160, DropDownStyle = ComboBoxStyle.DropDownList };
         PopulateHotkeys();
         Controls.Add(cmbHotkey);
         y += 50;
 
         // Çizgi
-        var sep = new Label { BorderStyle = BorderStyle.Fixed3D, Location = new Point(20, y), Size = new Size(345, 2) };
+        var sep = new Label { BorderStyle = BorderStyle.Fixed3D, Location = new Point(20, y), Size = new Size(380, 2) };
         Controls.Add(sep);
         y += 20;
 
-        // Butonlar
-        btnSave = new Button { Text = "Kaydet", Location = new Point(205, y), Width = 80, BackColor = SystemColors.Control };
+        // Butonlar ve Yapımcı Bilgisi
+        var lblCopyright = new Label
+        {
+            Text = MainForm.GetAuthorCopyrightText(),
+            ForeColor = Color.FromArgb(140, 140, 140),
+            Font = new Font("Segoe UI", 8f),
+            Location = new Point(20, y + 8),
+            AutoSize = true
+        };
+        Controls.Add(lblCopyright);
+
+        btnSave = new Button { Text = "Kaydet", Location = new Point(220, y), Width = 88, Height = 32, BackColor = SystemColors.Control };
         btnSave.Click += BtnSave_Click;
         
-        btnCancel = new Button { Text = "İptal", Location = new Point(290, y), Width = 80 };
+        btnCancel = new Button { Text = "İptal", Location = new Point(317, y), Width = 83, Height = 32 };
         btnCancel.Click += (s, e) => Close();
 
         Controls.Add(btnSave);
@@ -142,7 +152,7 @@ public sealed class SettingsForm : Form
         // UI'dan değerleri al
         _settings.SaveFolder = txtFolder.Text;
         _settings.NamingMode = radSequential.Checked ? NamingMode.Sequential : NamingMode.Timestamp;
-        _settings.FilePrefix = txtPrefix.Text.Trim() == "" ? "ad_" : txtPrefix.Text.Trim();
+        _settings.FilePrefix = AppSettings.SanitizePrefix(txtPrefix.Text, AppSettings.GetDefaultPrefix());
         _settings.HotkeyName = cmbHotkey.SelectedItem?.ToString() ?? "F9";
 
         // JSON Kaydet
