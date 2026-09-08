@@ -1,13 +1,15 @@
 using System.Drawing.Drawing2D;
+using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Windows.Forms;
 
 namespace EkranAlintisiAraci;
 
 // ─────────────────────────────────────────────────────────────────────────────
 /// <summary>
-/// System tray ikonu GDI+ ile programatik olarak oluşturur.
-/// Harici dosya gerekmez (single-file prensibine uygun).
-/// Crosshair tasarımı: koyu mavi çember + beyaz artı + mavi iç çember.
+/// Uygulama ve sistem tepsisi (tray) ikonunu sağlar.
+/// Öncelikli olarak gömülü favicon.ico dosyasını yükler,
+/// bulunamazsa .exe ikonunu veya GDI+ çizimini fallback olarak kullanır.
 /// </summary>
 public static class TrayIconFactory
 {
@@ -15,6 +17,33 @@ public static class TrayIconFactory
     private static extern bool DestroyIcon(IntPtr hIcon);
 
     public static Icon Create()
+    {
+        try
+        {
+            // 1. Gömülü favicon.ico kaynağından yükle
+            using var stream = Assembly.GetExecutingAssembly()
+                .GetManifestResourceStream("EkranAlintisiAraci.favicon.ico");
+            if (stream != null)
+            {
+                return new Icon(stream);
+            }
+
+            // 2. .exe'nin gömülü native ikonunu dene
+            var exeIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+            if (exeIcon != null)
+            {
+                return (Icon)exeIcon.Clone();
+            }
+        }
+        catch
+        {
+            // Herhangi bir hata durumunda aşağıdaki GDI+ çizimine geç
+        }
+
+        return CreateProceduralIcon();
+    }
+
+    private static Icon CreateProceduralIcon()
     {
         using var bmp = new Bitmap(64, 64);
         using var g   = Graphics.FromImage(bmp);

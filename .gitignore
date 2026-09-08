@@ -4,3 +4,4 @@
 *.user
 *.suo
 publish/
+.DS_Store
