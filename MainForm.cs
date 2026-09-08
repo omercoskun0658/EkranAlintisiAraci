@@ -378,8 +378,28 @@ public sealed class MainForm : Form
             string fullPath = Path.Combine(saveDir, fileName);
             bmp.Save(fullPath, ImageFormat.Png);
 
+            // Panoya Kopyala
+            if (_settings.CopyToClipboard)
+            {
+                try
+                {
+                    Clipboard.SetImage(bmp);
+                }
+                catch
+                {
+                    // Başka bir uygulamanın panoyu geçici kilitlemesini tolere et
+                }
+            }
+
             _trayIcon.Tag = fullPath;
-            _trayIcon.ShowBalloonTip(3000, "Görüntü Kaydedildi", fileName, ToolTipIcon.Info);
+            if (_settings.CopyToClipboard)
+            {
+                _trayIcon.ShowBalloonTip(3000, "Görüntü Kaydedildi & Kopyalandı", $"{fileName} (Ctrl+V ile yapıştırabilirsiniz)", ToolTipIcon.Info);
+            }
+            else
+            {
+                _trayIcon.ShowBalloonTip(3000, "Görüntü Kaydedildi", fileName, ToolTipIcon.Info);
+            }
         }
         catch (Exception ex)
         {

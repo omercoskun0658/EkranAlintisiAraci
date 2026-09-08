@@ -102,8 +102,16 @@ public sealed class CropForm : Form
         _dragging = false;
         _current  = e.Location;
 
-        // local koordinatlar zaten form/fullScreenBmp ile birebir örtüşür (vs.X/vs.Y eklenmez)
-        SelectedRegion = Normalize(_start, _current);
+        var rect = Normalize(_start, _current);
+        var vs = SystemInformation.VirtualScreen;
+
+        // Ekran sınırları dışına taşmayı önlemek için clamp et
+        int x = Math.Clamp(rect.X, 0, vs.Width);
+        int y = Math.Clamp(rect.Y, 0, vs.Height);
+        int r = Math.Clamp(rect.Right, 0, vs.Width);
+        int b = Math.Clamp(rect.Bottom, 0, vs.Height);
+
+        SelectedRegion = new Rectangle(x, y, Math.Max(0, r - x), Math.Max(0, b - y));
         WasCancelled = false;
         Close();
     }

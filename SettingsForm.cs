@@ -13,6 +13,7 @@ public sealed class SettingsForm : Form
     private RadioButton radSequential;
     private TextBox txtPrefix;
     private ComboBox cmbHotkey;
+    private CheckBox chkClipboard;
     private Button btnSave;
     private Button btnCancel;
 
@@ -21,7 +22,7 @@ public sealed class SettingsForm : Form
         _settings = settings;
         
         Text = "Ekran Alıntısı Aracı - Ayarlar";
-        ClientSize = new Size(420, 390);
+        ClientSize = new Size(420, 420);
         StartPosition = FormStartPosition.CenterScreen;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
@@ -78,12 +79,23 @@ public sealed class SettingsForm : Form
         cmbHotkey = new ComboBox { Location = new Point(20, y), Width = 160, DropDownStyle = ComboBoxStyle.DropDownList };
         PopulateHotkeys();
         Controls.Add(cmbHotkey);
-        y += 50;
+        y += 42;
+
+        // 5. Pano (Clipboard)
+        chkClipboard = new CheckBox
+        {
+            Text = "Ekran alıntısını panoya da kopyala (Ctrl+V)",
+            Location = new Point(20, y),
+            AutoSize = true,
+            Cursor = Cursors.Hand
+        };
+        Controls.Add(chkClipboard);
+        y += 35;
 
         // Çizgi
         var sep = new Label { BorderStyle = BorderStyle.Fixed3D, Location = new Point(20, y), Size = new Size(380, 2) };
         Controls.Add(sep);
-        y += 20;
+        y += 18;
 
         // Butonlar ve Yapımcı Bilgisi
         var lblCopyright = new Label
@@ -131,6 +143,8 @@ public sealed class SettingsForm : Form
             cmbHotkey.SelectedItem = _settings.HotkeyName;
         else
             cmbHotkey.SelectedItem = "F9"; // Fallback
+
+        chkClipboard.Checked = _settings.CopyToClipboard;
     }
 
     private void BtnBrowse_Click(object? sender, EventArgs e)
@@ -154,6 +168,7 @@ public sealed class SettingsForm : Form
         _settings.NamingMode = radSequential.Checked ? NamingMode.Sequential : NamingMode.Timestamp;
         _settings.FilePrefix = AppSettings.SanitizePrefix(txtPrefix.Text, AppSettings.GetDefaultPrefix());
         _settings.HotkeyName = cmbHotkey.SelectedItem?.ToString() ?? "F9";
+        _settings.CopyToClipboard = chkClipboard.Checked;
 
         // JSON Kaydet
         _settings.Save();

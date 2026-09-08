@@ -68,6 +68,9 @@ public sealed class AppSettings
         set => _filePrefix = SanitizePrefix(value, GetDefaultPrefix());
     }
 
+    /// <summary>Çekilen görüntünün otomatik olarak panoya kopyalanıp kopyalanmayacağı.</summary>
+    public bool CopyToClipboard { get; set; } = true;
+
     /// <summary>
     /// Kısayol tuşunun string adı (JSON'a yazılır).
     /// Örnek: "F9", "PrintScreen"
@@ -119,18 +122,20 @@ public sealed class AppSettings
     /// <summary>Derin kopya döndürür.</summary>
     public AppSettings Clone() => new()
     {
-        SaveFolder  = SaveFolder,
-        NamingMode  = NamingMode,
-        FilePrefix  = FilePrefix,
-        HotkeyName  = HotkeyName
+        SaveFolder      = SaveFolder,
+        NamingMode      = NamingMode,
+        FilePrefix      = FilePrefix,
+        HotkeyName      = HotkeyName,
+        CopyToClipboard = CopyToClipboard
     };
 
     /// <summary>Kaynaktan bu nesneye kopyalar.</summary>
     public void CopyFrom(AppSettings src)
     {
-        SaveFolder  = src.SaveFolder;
-        NamingMode  = src.NamingMode;
-        FilePrefix  = src.FilePrefix;
-        HotkeyName  = src.HotkeyName;
+        SaveFolder      = src.SaveFolder;
+        NamingMode      = src.NamingMode;
+        FilePrefix      = src.FilePrefix;
+        HotkeyName      = src.HotkeyName;
+        CopyToClipboard = src.CopyToClipboard;
     }
 }
