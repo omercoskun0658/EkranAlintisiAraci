@@ -17,6 +17,13 @@ public sealed class MainForm : Form
     private readonly NotifyIcon _trayIcon;
     private bool _isCapturing;
     private bool _forceExit;
+    private string? _lastSavedPath;
+
+    private enum BalloonAction
+    {
+        OpenImage,
+        RestoreApp
+    }
 
     // UI Bileşenleri
     private Label _lblStatusBadge = null!;
@@ -32,7 +39,7 @@ public sealed class MainForm : Form
 
         // Form Ayarları
         Text = "Ekran Alıntısı Aracı";
-        ClientSize = new Size(440, 325);
+        ClientSize = new Size(440, 330);
         StartPosition = FormStartPosition.CenterScreen;
         FormBorderStyle = FormBorderStyle.FixedSingle;
         MaximizeBox = false;
@@ -166,8 +173,8 @@ public sealed class MainForm : Form
             Text = "Pencereyi kapattığınızda uygulama sistem tepsisinde çalışmaya devam eder.",
             ForeColor = Color.FromArgb(120, 120, 120),
             Font = new Font("Segoe UI", 8.5f),
-            Location = new Point(25, 212),
-            Size = new Size(390, 24),
+            Location = new Point(15, 206),
+            Size = new Size(410, 36),
             TextAlign = ContentAlignment.MiddleCenter
         };
         Controls.Add(_lblInfo);
@@ -218,6 +225,7 @@ public sealed class MainForm : Form
         bool success = _hotkeyManager.Register(_settings.Hotkey);
         if (!success)
         {
+            _trayIcon.Tag = null;
             _trayIcon.ShowBalloonTip(3000, "Kısayol Uyarısı", $"{_settings.HotkeyName} kısayolu rezerve edilemedi. Başka bir program kullanıyor olabilir.", ToolTipIcon.Warning);
         }
     }
@@ -391,7 +399,8 @@ public sealed class MainForm : Form
                 }
             }
 
-            _trayIcon.Tag = fullPath;
+            _lastSavedPath = fullPath;
+            _trayIcon.Tag = BalloonAction.OpenImage;
             if (_settings.CopyToClipboard)
             {
                 _trayIcon.ShowBalloonTip(3000, "Görüntü Kaydedildi & Kopyalandı", $"{fileName} (Ctrl+V ile yapıştırabilirsiniz)", ToolTipIcon.Info);
@@ -403,6 +412,7 @@ public sealed class MainForm : Form
         }
         catch (Exception ex)
         {
+            _trayIcon.Tag = null;
             _trayIcon.ShowBalloonTip(4000, "Kayıt Hatası", $"Dosya kaydedilemedi: {ex.Message}", ToolTipIcon.Error);
             MessageBox.Show($"Ekran görüntüsü kaydedilirken hata oluştu:\n{ex.Message}\n\nKlasör: {_settings.SaveFolder}", "Kayıt Hatası", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
@@ -455,17 +465,26 @@ public sealed class MainForm : Form
 
     private void OnBalloonTipClicked(object? sender, EventArgs e)
     {
-        if (_trayIcon.Tag is string path && File.Exists(path))
+        if (_trayIcon.Tag is BalloonAction action)
         {
-            try
+            if (action == BalloonAction.RestoreApp)
             {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = path,
-                    UseShellExecute = true
-                });
+                // Bildirime tıklandığında ana pencereyi aç
+                ShowAndRestore();
             }
-            catch { /* Ignored */ }
+            else if (action == BalloonAction.OpenImage && !string.IsNullOrEmpty(_lastSavedPath) && File.Exists(_lastSavedPath))
+            {
+                // Ekran görüntüsü bildirimine tıklandığında resmi aç
+                try
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = _lastSavedPath,
+                        UseShellExecute = true
+                    });
+                }
+                catch { /* Ignored */ }
+            }
         }
     }
 
@@ -475,7 +494,8 @@ public sealed class MainForm : Form
         {
             e.Cancel = true;
             Hide();
-            _trayIcon.ShowBalloonTip(2000, "Ekran Alıntısı Aracı", "Uygulama arka planda çalışmaya devam ediyor. Açmak için simgeye çift tıklayın.", ToolTipIcon.Info);
+            _trayIcon.Tag = BalloonAction.RestoreApp;
+            _trayIcon.ShowBalloonTip(2000, "Ekran Alıntısı Aracı", "Uygulama arka planda çalışmaya devam ediyor. Açmak için tıklayın.", ToolTipIcon.Info);
             return;
         }
 
