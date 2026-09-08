@@ -386,22 +386,16 @@ public sealed class MainForm : Form
             string fullPath = Path.Combine(saveDir, fileName);
             bmp.Save(fullPath, ImageFormat.Png);
 
-            // Panoya Kopyala
+            // Panoya Çoklu Formatlı Kopyala (Bitmap + PNG + Dosya)
+            bool copiedToClipboard = false;
             if (_settings.CopyToClipboard)
             {
-                try
-                {
-                    Clipboard.SetImage(bmp);
-                }
-                catch
-                {
-                    // Başka bir uygulamanın panoyu geçici kilitlemesini tolere et
-                }
+                copiedToClipboard = CopyImageToClipboard(bmp, fullPath);
             }
 
             _lastSavedPath = fullPath;
             _trayIcon.Tag = BalloonAction.OpenImage;
-            if (_settings.CopyToClipboard)
+            if (copiedToClipboard)
             {
                 _trayIcon.ShowBalloonTip(3000, "Görüntü Kaydedildi & Kopyalandı", $"{fileName} (Ctrl+V ile yapıştırabilirsiniz)", ToolTipIcon.Info);
             }
@@ -416,6 +410,41 @@ public sealed class MainForm : Form
             _trayIcon.ShowBalloonTip(4000, "Kayıt Hatası", $"Dosya kaydedilemedi: {ex.Message}", ToolTipIcon.Error);
             MessageBox.Show($"Ekran görüntüsü kaydedilirken hata oluştu:\n{ex.Message}\n\nKlasör: {_settings.SaveFolder}", "Kayıt Hatası", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
+    }
+
+    private static bool CopyImageToClipboard(Bitmap bmp, string? filePath)
+    {
+        for (int attempt = 0; attempt < 5; attempt++)
+        {
+            try
+            {
+                var dataObject = new DataObject();
+
+                // 1. Standart Bitmap (Paint, Word, PowerPoint, Office vb. için)
+                dataObject.SetData(DataFormats.Bitmap, true, bmp);
+
+                // 2. PNG Stream (Discord, WhatsApp, Telegram, Slack, Chrome, Edge vb. için)
+                var ms = new MemoryStream();
+                bmp.Save(ms, ImageFormat.Png);
+                dataObject.SetData("PNG", false, ms);
+
+                // 3. Dosya Listesi (Klasör içine veya masaüstüne dosya olarak yapıştırmak için)
+                if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
+                {
+                    var fileDrop = new System.Collections.Specialized.StringCollection { filePath };
+                    dataObject.SetFileDropList(fileDrop);
+                }
+
+                Clipboard.SetDataObject(dataObject, copy: true, retryTimes: 3, retryDelay: 100);
+                return true;
+            }
+            catch
+            {
+                Thread.Sleep(80);
+            }
+        }
+
+        return false;
     }
 
     private void OpenSaveFolder()
