@@ -243,17 +243,26 @@ public sealed class MainForm : Form
         if (_isCapturing) return;
 
         bool wasVisible = Visible;
+        Point originalLocation = Location;
+
         if (wasVisible)
         {
+            Location = new Point(-32000, -32000);
             Hide();
-            await Task.Delay(150); // Formun ekrandan tamamen silinmesi için kısa gecikme
+            await Task.Delay(30); // DWM kompozitörünün kareyi boşaltması için mikro gecikme
         }
 
-        CaptureScreenAction();
-
-        if (wasVisible && !_forceExit)
+        try
         {
-            ShowAndRestore();
+            CaptureScreenAction();
+        }
+        finally
+        {
+            if (wasVisible && !_forceExit)
+            {
+                Location = originalLocation;
+                ShowAndRestore();
+            }
         }
     }
 

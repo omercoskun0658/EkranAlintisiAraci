@@ -1,4 +1,6 @@
 using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
 
 namespace EkranAlintisiAraci;
 
@@ -11,8 +13,35 @@ namespace EkranAlintisiAraci;
 /// </summary>
 public sealed class CropForm : Form
 {
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool GetIconInfo(IntPtr hIcon, out ICONINFO piconinfo);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern IntPtr CreateIconIndirect(ref ICONINFO icon);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool DestroyIcon(IntPtr hIcon);
+
+    [DllImport("gdi32.dll", SetLastError = true)]
+    private static extern bool DeleteObject(IntPtr hObject);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct ICONINFO
+    {
+        public int fIcon;
+        public int xHotspot;
+        public int yHotspot;
+        public IntPtr hbmMask;
+        public IntPtr hbmColor;
+    }
+
     // ── Durum ────────────────────────────────────────────────────────────────
     private readonly Bitmap _screen;
+    private readonly Cursor _customCursor;
+    private readonly IntPtr _hCustomCursor;
     private Point _start;
     private Point _current;
     private bool  _dragging;
@@ -38,7 +67,8 @@ public sealed class CropForm : Form
         FormBorderStyle = FormBorderStyle.None;
         TopMost         = true;
         ShowInTaskbar   = false;
-        Cursor          = Cursors.Cross;
+        (_customCursor, _hCustomCursor) = CreateOutlinedCrosshairCursor();
+        Cursor          = _customCursor;
         BackColor       = Color.Black;
         KeyPreview      = true;
 
@@ -54,17 +84,28 @@ public sealed class CropForm : Form
             ControlStyles.AllPaintingInWmPaint  |
             ControlStyles.UserPaint, true);
 
-        // Olaylar
-        KeyDown += (_, e) =>
-        {
-            if (e.KeyCode == Keys.Escape)
-            {
-                CancelCapture();
-            }
-        };
         MouseDown += OnMouseDown;
         MouseMove += OnMouseMove;
         MouseUp   += OnMouseUp;
+    }
+
+    protected override void OnShown(EventArgs e)
+    {
+        base.OnShown(e);
+        BringToFront();
+        Activate();
+        Focus();
+        SetForegroundWindow(Handle);
+    }
+
+    protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+    {
+        if (keyData == Keys.Escape)
+        {
+            CancelCapture();
+            return true;
+        }
+        return base.ProcessCmdKey(ref msg, keyData);
     }
 
     private void CancelCapture()
@@ -223,4 +264,81 @@ public sealed class CropForm : Form
             Math.Min(a.Y, b.Y),
             Math.Abs(b.X - a.X),
             Math.Abs(b.Y - a.Y));
+
+    // ── Özel İmleç ve Kaynak Temizliği ───────────────────────────────────────
+    private static (Cursor Cursor, IntPtr HCursor) CreateOutlinedCrosshairCursor()
+    {
+        const int size = 31;
+        const int center = 15;
+
+        using var bmp = new Bitmap(size, size, PixelFormat.Format32bppArgb);
+        using (var g = Graphics.FromImage(bmp))
+        {
+            g.Clear(Color.Transparent);
+
+            using var blackBrush = new SolidBrush(Color.Black);
+            using var whiteBrush = new SolidBrush(Color.White);
+
+            // 1) Siyah dış çerçeve (3px kalınlığında):
+            // Yatay: x: 3..27 (genişlik 25), y: 14..16 (yükseklik 3)
+            g.FillRectangle(blackBrush, 3, 14, 25, 3);
+            // Dikey: x: 14..16 (genişlik 3), y: 3..27 (yükseklik 25)
+            g.FillRectangle(blackBrush, 14, 3, 3, 25);
+
+            // 2) Beyaz iç çekirdek (1px kalınlığında, tam ortada):
+            // Yatay: x: 4..26 (genişlik 23), y: 15 (yükseklik 1)
+            g.FillRectangle(whiteBrush, 4, 15, 23, 1);
+            // Dikey: x: 15 (genişlik 1), y: 4..26 (yükseklik 23)
+            g.FillRectangle(whiteBrush, 15, 4, 1, 23);
+        }
+
+        IntPtr hIcon = bmp.GetHicon();
+        try
+        {
+            if (GetIconInfo(hIcon, out var iconInfo))
+            {
+                try
+                {
+                    iconInfo.fIcon = 0; // 0 = cursor
+                    iconInfo.xHotspot = center;
+                    iconInfo.yHotspot = center;
+
+                    IntPtr hCursor = CreateIconIndirect(ref iconInfo);
+                    if (hCursor != IntPtr.Zero)
+                    {
+                        return (new Cursor(hCursor), hCursor);
+                    }
+                }
+                finally
+                {
+                    if (iconInfo.hbmColor != IntPtr.Zero) DeleteObject(iconInfo.hbmColor);
+                    if (iconInfo.hbmMask != IntPtr.Zero) DeleteObject(iconInfo.hbmMask);
+                }
+            }
+        }
+        finally
+        {
+            DestroyIcon(hIcon);
+        }
+
+        return (Cursors.Cross, IntPtr.Zero);
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            if (_customCursor != Cursors.Cross)
+            {
+                _customCursor.Dispose();
+            }
+        }
+
+        if (_hCustomCursor != IntPtr.Zero)
+        {
+            DestroyIcon(_hCustomCursor);
+        }
+
+        base.Dispose(disposing);
+    }
 }
